@@ -48,7 +48,7 @@ proc exec_instance {type cfgfile} {
     if {$::valgrind} {
         set pid [exec valgrind --track-origins=yes --suppressions=../../../src/valgrind.sup --show-reachable=no --show-possibly-lost=no --leak-check=full ../../../src/${prgname} $cfgfile &]
     } else {
-        set pid [exec ../../../src/${prgname} $cfgfile &]
+        set pid [exec ../../../src/${prgname} $cfgfile --loglevel verbose &]
     }
     return $pid
 }
@@ -72,6 +72,7 @@ proc spawn_instance {type base_port count {conf {}}} {
         puts $cfg "port $port"
         puts $cfg "dir ./$dirname"
         puts $cfg "logfile log.txt"
+        # puts $cfg "--loglevel debug"
         # Add additional config files
         foreach directive $conf {
             puts $cfg $directive
@@ -106,6 +107,15 @@ proc cleanup {} {
     }
     foreach dir $::dirs {
         catch {exec rm -rf $dir}
+    }
+}
+proc cleanup2 {} {
+    puts "Cleaning up..."
+    foreach pid $::pids {
+        catch {exec kill -9 $pid}
+    }
+    foreach dir $::dirs {
+        # catch {exec rm -rf $dir}
     }
 }
 
@@ -251,14 +261,26 @@ proc test {descr code} {
 # Execute all the units inside the 'tests' directory.
 proc run_tests {} {
     set tests [lsort [glob ../tests/*]]
+    set c 0
     foreach test $tests {
-        if {$::run_matching ne {} && [string match $::run_matching $test] == 0} {
-            continue
-        }
-        if {[file isdirectory $test]} continue
-        puts [colorstr yellow "Testing unit: [lindex [file split $test] end]"]
-        source $test
+        incr c
+        # if {$c eq 5} {
+            puts $test
+            if {$::run_matching ne {} && [string match $::run_matching $test] == 0} {
+                continue
+            }
+            if {[file isdirectory $test]} continue
+            puts [colorstr yellow "Testing unit: [lindex [file split $test] end]"]
+            source $test    
+        # }
+        
     }
+}
+
+proc run_tests2 {} {
+    set test "../tests/12-simplewrite.tcl"
+    puts "Running $test"
+    source $test
 }
 
 # Print a message and exists with 0 / 1 according to zero or more failures.

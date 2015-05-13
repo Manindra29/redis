@@ -15,8 +15,8 @@ proc main {} {
         "cluster-enabled yes"
         "appendonly yes"
     }
-    run_tests
-    cleanup
+    run_tests2
+    cleanup2
     end_tests
 }
 

@@ -583,7 +583,6 @@ class RedisTrib
         nodes_count -= masters.length
 
         masters.each{|m| puts m}
-        node_to_hash_map = Hash.new("node_to_hash_map")
         hash_to_node_map = Hash.new("hash_to_node_map")
 
         # Alloc slots on masters
@@ -593,7 +592,6 @@ class RedisTrib
         masters.each_with_index{|n,masternum|
             crc = Zlib.crc32(n.to_s)
             key = crc % ClusterHashSlots
-            node_to_hash_map[n.to_s] = key
             hash_to_node_map[key] = n
             '''
             last = (cursor+slots_per_node-1).round

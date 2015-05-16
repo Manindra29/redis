@@ -23,6 +23,7 @@
 
 require 'rubygems'
 require 'redis'
+require 'zlib'
 
 ClusterHashSlots = 16384
 
@@ -541,6 +542,7 @@ class RedisTrib
         masters_count = @nodes.length / (@replicas+1)
         masters = []
 
+
         # The first step is to split instances by IP. This is useful as
         # we'll try to allocate master nodes in different physical machines
         # (as much as possible) and to allocate slaves of a given master in
@@ -581,12 +583,19 @@ class RedisTrib
         nodes_count -= masters.length
 
         masters.each{|m| puts m}
+        node_to_hash_map = Hash.new("node_to_hash_map")
+        hash_to_node_map = Hash.new("hash_to_node_map")
 
         # Alloc slots on masters
         slots_per_node = ClusterHashSlots.to_f / masters_count
         first = 0
         cursor = 0.0
         masters.each_with_index{|n,masternum|
+            crc = Zlib.crc32(n.to_s)
+            key = crc % ClusterHashSlots
+            node_to_hash_map[n.to_s] = key
+            hash_to_node_map[key] = n
+            '''
             last = (cursor+slots_per_node-1).round
             if last > ClusterHashSlots || masternum == masters.length-1
                 last = ClusterHashSlots-1
@@ -595,7 +604,23 @@ class RedisTrib
             n.add_slots first..last
             first = last+1
             cursor += slots_per_node
+            '''
         }
+        keys = hash_to_node_map.keys
+        keys = keys.sort
+        keys.each_with_index{|key,index|
+            n = hash_to_node_map[key]
+            if index < keys.length - 1
+                n.add_slots key..(keys[index+1] - 1)
+                puts "Node : " + n.to_s + "  assigned hash slot #{key} to #{keys[index+1] - 1}" 
+            else
+                n.add_slots key..(ClusterHashSlots-1)
+                n.add_slots 0..(keys.first - 1)
+                puts "Node : " + n.to_s + "  assigned hash slot #{key} to #{keys.first - 1} through 0" 
+            end
+        }
+
+
 
         # Select N replicas for every master.
         # We try to split the replicas among all the IPs with spare nodes
